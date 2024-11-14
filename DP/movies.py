@@ -1,11 +1,11 @@
 import requests  # type: ignore
 
-# Define the base URL and API key
+# Defining the base URL and API key to TMDB
 api_key = "d3967d088d5c2e4baa702cf128358a62"
-discover_url = "https://api.themoviedb.org/3/discover/movie"  # movies API
-genres_url = "https://api.themoviedb.org/3/genre/movie/list"  # movies genres API
+discover_url = "https://api.themoviedb.org/3/discover/movie"  # movies 
+genres_url = "https://api.themoviedb.org/3/genre/movie/list"  # movies genres 
 
-# Fetch the genre list
+# Fetch the genre list first by ID
 def get_genres():
     response = requests.get(genres_url, params={"api_key": api_key, "language": "en-US"})
     if response.status_code == 200:
@@ -15,7 +15,7 @@ def get_genres():
         print(f"Failed to retrieve genres: {response.status_code}")
         return {}
 
-# Fetch the movie data across multiple pages to get 50 movies
+# Fetch the movie data across multiple pages to get 50 movies -> each page holds only 20 records and we want to show at least 50
 def get_movies():
     movies = []
     for page in range(1, 4):  # Fetch pages 1 to 3
@@ -29,15 +29,15 @@ def get_movies():
         
         if response.status_code == 200:
             movies.extend(response.json()['results'])
-            if len(movies) >= 50:  # Stop if we have at least 50 movies
+            if len(movies) >= 50:  # If we have at least 50 movies -> BREAK
                 break
         else:
             print(f"Failed to retrieve movies from page {page}: {response.status_code}")
             break
 
-    return movies[:50]  # Return only the first 50 movies
+    return movies[:50]  # Return the first 50 movies found
 
-# Main function to print the movie details
+# Print the movie details
 def display_movie_details():
     genres_map = get_genres()
     movies = get_movies()
@@ -56,7 +56,7 @@ def display_movie_details():
         vote_count = movie.get('vote_count')
         genre_ids = movie.get('genre_ids', [])  # genres are listed by id on another API link -> showed above
         
-        # Map genre_ids to genre names
+        # Assign genre_ids to genre names
         genres = [genres_map.get(genre_id, "Unknown") for genre_id in genre_ids]
         
         print(f"Title: {title}")
@@ -69,5 +69,5 @@ def display_movie_details():
         print(f"Genres: {', '.join(genres)}")
         print("-" * 50)
 
-# Call the function to display movie details
+# Display
 display_movie_details()
