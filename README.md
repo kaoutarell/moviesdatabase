@@ -15,7 +15,7 @@ Since the information about actors, directors, and genres is not included in the
 - [https://api.themoviedb.org/3/genre/movie/list]
 - [https://api.themoviedb.org/3/movie]
 
-### Python Config
+## Python Config
 
 #### Install python :
 
@@ -79,7 +79,7 @@ source myenv/bin/activate
 python3 movies.py
 ```
 
-### POSTGRES CONFIG
+## POSTGRES CONFIG
 
 ```
 docker run --name postgres-container --network pgnetwork -e POSTGRES_USER=kel -e POSTGRES_PASSWORD=soen363 -e POSTGRES_DB=movies_db -p 5432:5432 -d postgres
