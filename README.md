@@ -1,6 +1,6 @@
-# moviesdatabase
+# Movies Database - Assignment 2 
 
-## Note
+## General Note
 
 In our project, we'll be using three different APIs from TMDB (The Movie Database) to gather information about movies:
 
@@ -79,7 +79,7 @@ source myenv/bin/activate
 python3 movies.py
 ```
 
-## POSTGRES CONFIG
+### POSTGRES CONFIG
 
 ```
 docker run --name postgres-container --network pgnetwork -e POSTGRES_USER=kel -e POSTGRES_PASSWORD=soen363 -e POSTGRES_DB=movies_db -p 5432:5432 -d postgres
