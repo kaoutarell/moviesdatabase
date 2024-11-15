@@ -1,4 +1,4 @@
-# Movies Database - Assignment 2 
+# Movies Database - Assignment 2
 
 ## General Note
 
@@ -11,6 +11,7 @@ In our project, we'll be using three different APIs from TMDB (The Movie Databas
 Since the information about actors, directors, and genres is not included in the same response as the other movie details, we loop through all three APIs in our code. This allows us to gather the necessary data and combine it, ensuring that we can display complete movie details including the cast, crew, and genres.
 
 > API Links :
+
 - [https://api.themoviedb.org/3/discover/movie]
 - [https://api.themoviedb.org/3/genre/movie/list]
 - [https://api.themoviedb.org/3/movie]
@@ -82,6 +83,6 @@ python3 movies.py
 ## POSTGRES CONFIG
 
 ```
-docker run --name postgres-container --network pgnetwork -e POSTGRES_USER=kel -e POSTGRES_PASSWORD=soen363 -e POSTGRES_DB=movies_db -p 5432:5432 -d postgres
+docker run --name postgres-container --network pgnetwork -e POSTGRES_USER=kel -e POSTGRES_PASSWORD=soen363 -e POSTGRES_DB=movies_db -p 5431:5432 -d postgres
 
 ```
