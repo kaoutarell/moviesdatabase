@@ -1,5 +1,3 @@
-## ---------------------------------- PART 3 -----------------------------------------
-
 import psycopg2 # type: ignore
 from psycopg2 import sql # type: ignore
 
@@ -22,7 +20,8 @@ cur.execute("""
         plot TEXT,
         content_rating VARCHAR(10),
         viewers_rating DECIMAL(3, 1),
-        release_year INT
+        release_year INT,
+        imdb_id VARCHAR(20) -- New column for IMDb ID (VARCHAR to store the IMDb ID / optional might be empty for some records)
     );
 """)
 
@@ -71,7 +70,7 @@ cur.execute("""
 # Create the movie_directors table (many-to-many relationship between movies and directors)
 cur.execute("""
     CREATE TABLE IF NOT EXISTS movie_director (
-        movie_id INT REFERENCES movie(movie_id),
+        movie_id INT REFERENCES movie(movie_id) ON DELETE CASCADE ON UPDATE CASCADE,
         director_id INT REFERENCES director(director_id) ON DELETE CASCADE ON UPDATE CASCADE,
         PRIMARY KEY (movie_id, director_id)
     );
@@ -81,7 +80,8 @@ cur.execute("""
 cur.execute("""
     CREATE TABLE IF NOT EXISTS country (
         country_id SERIAL PRIMARY KEY,
-        name VARCHAR(255)
+        name VARCHAR(255),
+        country_code VARCHAR(10) -- New column for country code (can store 2 or 3 character country codes)
     );
 """)
 
@@ -169,13 +169,13 @@ except Exception as e:
 
 
 # test insertion -- alles gute
-def insert_movie(title, plot, content_rating, viewers_rating, release_year):
+def insert_movie(title, plot, content_rating, viewers_rating, release_year, imdb_id):
     cur.execute(
         """
-        INSERT INTO movie (title, plot, content_rating, viewers_rating, release_year)
-        VALUES (%s, %s, %s, %s, %s) RETURNING movie_id;
+        INSERT INTO movie (title, plot, content_rating, viewers_rating, release_year, imdb_id)
+        VALUES (%s, %s, %s, %s, %s, %s) RETURNING movie_id;
         """,
-        (title, plot, content_rating, viewers_rating, release_year)
+        (title, plot, content_rating, viewers_rating, release_year, imdb_id)
     )
     conn.commit()
     movie_id = cur.fetchone()[0]  # Retrieve the inserted movie ID
@@ -186,9 +186,18 @@ movie_id = insert_movie(
     "An upcoming superhero film based on the Marvel Comics character Spider-Man",
     "SP-13",
     10.0,
-    2024
+    2024,
+    "tt1234567"  # IMDb ID
 )
 
 # closing the connection
 cur.close()
 conn.close()
+
+
+
+## How to reset postgres tables for tests:
+# DROP SCHEMA public CASCADE;
+# CREATE SCHEMA public;
+# GRANT ALL ON SCHEMA public TO postgres;
+# GRANT ALL ON SCHEMA public TO public;
