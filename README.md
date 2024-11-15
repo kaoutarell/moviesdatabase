@@ -1,6 +1,6 @@
-# moviesdatabase
+# Movies Database - Assignment 2 
 
-## Note
+## General Note
 
 In our project, we'll be using three different APIs from TMDB (The Movie Database) to gather information about movies:
 
@@ -11,9 +11,11 @@ In our project, we'll be using three different APIs from TMDB (The Movie Databas
 Since the information about actors, directors, and genres is not included in the same response as the other movie details, we loop through all three APIs in our code. This allows us to gather the necessary data and combine it, ensuring that we can display complete movie details including the cast, crew, and genres.
 
 > API Links :
-> [https://api.themoviedb.org/3/discover/movie] > [https://api.themoviedb.org/3/genre/movie/list] > [https://api.themoviedb.org/3/movie]
+- [https://api.themoviedb.org/3/discover/movie]
+- [https://api.themoviedb.org/3/genre/movie/list]
+- [https://api.themoviedb.org/3/movie]
 
-### Python Config
+## Python Config
 
 #### Install python :
 
