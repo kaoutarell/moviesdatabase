@@ -7,4 +7,4 @@ SELECT
 FROM movie;
 
 
--- Expected result is : 26 with and 25 without (given the data we have)
+-- Expected result is : 20 with and 30 without (given the data we have)

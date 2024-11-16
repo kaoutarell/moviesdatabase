@@ -9,3 +9,4 @@ JOIN movie m ON ml.movie_id = m.movie_id
 GROUP BY l.language_id -- Necessary for the count grouping
 ORDER BY number_of_movies DESC; -- highest rank to lowest -> descendant ordering
 
+-- Gives 19 results 

@@ -1,11 +1,15 @@
 -- Find top 2 comedies (higher ratings).
+-- ROUND is used to have only 1 decimal digit - without it, I get 6 digits
 
-SELECT 
-    m.title,
-    m.viewers_rating
+SELECT m.title, ROUND(AVG(r.viewer_rating), 1) AS avg_rating
 FROM movie m
 JOIN movie_genre mg ON m.movie_id = mg.movie_id
 JOIN genre g ON mg.genre_id = g.genre_id
+JOIN movie_review mr ON m.movie_id = mr.movie_id
+JOIN review r ON mr.review_id = r.review_id
 WHERE g.name = 'Comedy'
-ORDER BY m.viewers_rating DESC -- (highest first)
-LIMIT 2; -- We only want 2
+GROUP BY m.movie_id
+ORDER BY avg_rating DESC
+LIMIT 2;
+
+-- Gives 2 results 
