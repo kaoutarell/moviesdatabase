@@ -19,6 +19,7 @@ cur.execute("""
         title VARCHAR(255),
         plot TEXT,
         release_year INT,
+        runtime VARCHAR(20),
         imdb_id VARCHAR(20) UNIQUE, -- New column for IMDb ID (VARCHAR to store the IMDb ID / optional might be empty for some records)
         tmdb_id VARCHAR(20) UNIQUE NOT NULL   
     );
@@ -219,9 +220,6 @@ try:
     print(f"Simple query result: {result}")
 except Exception as e:
     print(f"Error during simple query: {e}")
-
-
-
 
 
 # closing the connection

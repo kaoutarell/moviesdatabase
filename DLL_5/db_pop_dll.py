@@ -25,22 +25,56 @@ cur = conn.cursor()
 
 
 # -------- Insert reviews in reviews table -- generated randomly
-
-fake = Faker()
-# Function to generate random review data
-def generate_random_review():
-    # Generate a random rating
-    rating = round(random.uniform(1.0, 10.0), 1)
-    content = fake.text(max_nb_chars=200)  # Generate random review content
-    return rating, content
-
-for _ in range(100):
-    rating, content = generate_random_review()
+def insert_reviews():
+    reviews = [
+        (8.5, 'Very good movie, I loved it!'),
+        (9.0, 'Fantastic! The acting and visuals were top-notch.'),
+        (7.2, 'Good story, but the pacing was a bit slow.'),
+        (6.5, 'It was okay, but I expected more from the ending.'),
+        (4.3, 'Not great. The plot felt too predictable.'),
+        (5.0, 'Decent movie, but nothing memorable.'),
+        (8.8, 'One of the best films I have seen this year!'),
+        (7.9, 'Well-made movie with strong performances.'),
+        (3.5, 'Poor direction and weak characters ruined it.'),
+        (6.0, 'Average, could have been better.'),
+        (9.5, 'Absolutely loved it! A masterpiece.'),
+        (8.2, 'Great action and thrilling moments!'),
+        (7.0, 'Good movie, but some parts felt unnecessary.'),
+        (5.5, 'Not bad, but not great either.'),
+        (6.8, 'Decent watch, but lacked depth in storytelling.'),
+        (9.0, 'Superb! Would watch it again.'),
+        (4.0, 'Disappointed. The trailer was misleading.'),
+        (3.8, 'Terrible plot and unconvincing acting.'),
+        (7.5, 'Enjoyable, with a few standout scenes.'),
+        (8.3, 'Loved the characters and their journey.'),
+        (6.7, 'It had its moments, but overall just fine.'),
+        (5.2, 'Mediocre at best. Not worth the hype.'),
+        (9.8, 'An absolute gem! Highly recommend.'),
+        (2.5, 'Couldn’t sit through it. Very boring.'),
+        (7.3, 'Solid film, good for a one-time watch.'),
+        (4.9, 'Meh, expected more from the director.'),
+        (6.0, 'A bit slow, but the ending was worth it.'),
+        (8.7, 'Outstanding cinematography and music!'),
+        (7.1, 'Nice story but dragged in some places.'),
+        (5.8, 'Forgettable. Wouldn’t recommend.'),
+        (9.1, 'Brilliant from start to finish.'),
+        (8.0, 'Very entertaining, great family movie.'),
+        (3.2, 'Not my type of film. Too confusing.'),
+        (6.9, 'Enjoyable but could’ve been shorter.'),
+        (8.4, 'Great performances and emotional depth.'),
+        (7.6, 'Good movie with a strong message.'),
+        (4.7, 'Subpar acting and weak dialogue.'),
+        (9.9, 'Perfect! Couldn’t have been better.'),
+        (2.8, 'Worst movie I’ve seen in years.')
+    ]
+    
     insert_query = """
     INSERT INTO review (viewer_rating, review_content)
     VALUES (%s, %s);
     """
-    cur.execute(insert_query, (rating, content))
+    for review in reviews:
+        cur.execute(insert_query, review)
+insert_reviews()
 
 # ---------- Insert watch modes into the watchmode table if they don't already exist
 def insert_watch_modes():
@@ -118,17 +152,26 @@ def fetch_and_insert_movies(min_movies=50):
                 break
 
             for movie in movies_data:
+                tmdb_id = movie.get('id')  # Use the TMDB ID from the API
+                if tmdb_id in existing_tmdb_ids:
+                    continue  # Skip if the movie already exists in the database
+
                 title = movie.get('title')
                 plot = movie.get('overview')
                 content_rating = movie.get('content_rating', random.choice(content_ratings))
-                viewers_rating = movie.get('vote_average', 0.0)
                 release_date = movie.get('release_date', "0000-00-00")
                 release_year = int(release_date.split('-')[0]) if release_date else None
 
-                # Generate unique tmdb_id -> UNIQUE FIELD
-                tmdb_id = generate_random_tmdb_id(existing_tmdb_ids)
+                # Fetch runtime from Movie Details API
+                runtime = None
+                details_url = f"https://api.themoviedb.org/3/movie/{tmdb_id}"
+                details_params = {"api_key": api_key, "language": "en-US"}
+                details_response = requests.get(details_url, params=details_params)
 
-                # Generate a random IMDB ID
+                if details_response.status_code == 200:
+                    runtime = details_response.json().get('runtime')
+
+                # Generate a random IMDB ID (optional)
                 imdb_id = None
                 if random.random() > 0.5:  # 50% chance to assign a random imdb_id
                     imdb_id = generate_random_imdb_id()
@@ -136,14 +179,14 @@ def fetch_and_insert_movies(min_movies=50):
                 # Insert movie into movie table
                 if imdb_id:
                     cur.execute("""
-                        INSERT INTO movie (title, plot, release_year, imdb_id, tmdb_id)
-                        VALUES (%s, %s, %s, %s, %s) RETURNING movie_id;
-                    """, (title, plot, release_year, imdb_id, tmdb_id))
+                        INSERT INTO movie (title, plot, release_year, runtime, imdb_id, tmdb_id)
+                        VALUES (%s, %s, %s, %s, %s, %s) RETURNING movie_id;
+                    """, (title, plot, release_year, runtime, imdb_id, tmdb_id))
                 else:
                     cur.execute("""
-                        INSERT INTO movie (title, plot, release_year, tmdb_id)
-                        VALUES (%s, %s, %s, %s) RETURNING movie_id;
-                    """, (title, plot, release_year, tmdb_id))
+                        INSERT INTO movie (title, plot, release_year, runtime, tmdb_id)
+                        VALUES (%s, %s, %s, %s, %s) RETURNING movie_id;
+                    """, (title, plot, release_year, runtime, tmdb_id))
 
                 movie_id = cur.fetchone()[0]
 
@@ -246,9 +289,57 @@ def fetch_and_insert_movie_details(movie_id, tmdb_movie_id):
     else:
         print(f"Failed to fetch details for movie {tmdb_movie_id}: {details_response.status_code}")
 
+# Insert watchmodes
+def insert_movie_watchmodes():
+    # Fetch all movies and watch modes
+    cur.execute("SELECT movie_id FROM movie")
+    movie_ids = [row[0] for row in cur.fetchall()]
+
+    cur.execute("SELECT watchmode_id FROM watchmode")
+    watchmode_ids = [row[0] for row in cur.fetchall()]
+
+    # Randomly select 70% of movies to assign watch modes --> to leave some movies without watchmode as the requirements state
+    movies_with_watchmodes = random.sample(movie_ids, k=int(0.7 * len(movie_ids)))
+
+    for movie_id in movies_with_watchmodes:
+        # Assign 1-3 random watch modes for each selected movie
+        selected_watchmodes = random.sample(watchmode_ids, k=random.randint(1, 3))
+        for watchmode_id in selected_watchmodes:
+            cur.execute("""
+                INSERT INTO movie_watchmode (movie_id, watchmode_id)
+                VALUES (%s, %s) ON CONFLICT DO NOTHING;
+            """, (movie_id, watchmode_id))
+    
+    conn.commit()
+
+
+def insert_movie_reviews():
+    # Fetch all movies and reviews
+    cur.execute("SELECT movie_id FROM movie")
+    movie_ids = [row[0] for row in cur.fetchall()]
+
+    cur.execute("SELECT review_id FROM review")
+    review_ids = [row[0] for row in cur.fetchall()]
+
+    for movie_id in movie_ids:
+        # Assign 1-5 random reviews to each movie
+        selected_reviews = random.sample(review_ids, k=random.randint(1, 5))
+        for review_id in selected_reviews:
+            cur.execute("""
+                INSERT INTO movie_review (movie_id, review_id)
+                VALUES (%s, %s) ON CONFLICT DO NOTHING;
+            """, (movie_id, review_id))
+    
+    conn.commit()
+
+
 # Run functions to fetch and insert data
 fetch_and_insert_genres()
 fetch_and_insert_movies(min_movies=50)
+
+insert_movie_watchmodes()
+insert_movie_reviews()
+
 
 # Close the connection
 cur.close()

@@ -1,15 +1,17 @@
-CREATE OR REPLACE VIEW movie_summary AS
-SELECT 
-    m.tmdb_id AS tmdb_key,
-    m.imdb_id AS imdb_key,
+CREATE VIEW movie_summary AS
+SELECT
+    m.tmdb_id,
+    m.imdb_id,
     m.title,
-    m.plot AS description,
-    m.content_rating,
-    COUNT(DISTINCT mk.keyword_id) AS number_of_keywords,
-    COUNT(DISTINCT mc.country_id) AS number_of_countries
-FROM 
+    m.plot,
+    cr.rating AS content_rating, -- in content_rating 
+    m.runtime,
+    -- Count the number of keywords related to the movie
+    (SELECT COUNT(*) FROM movie_keyword mk WHERE mk.movie_id = m.movie_id) AS num_keywords,
+    -- Count the number of countries related to the movie
+    (SELECT COUNT(*) FROM movie_country mc WHERE mc.movie_id = m.movie_id) AS num_countries
+FROM
     movie m
-LEFT JOIN movie_keyword mk ON m.movie_id = mk.movie_id -- we want to return all rows from movies + for movies that do not have associated keywords or countries, NULL values will be used.
-LEFT JOIN movie_country mc ON m.movie_id = mc.movie_id
-GROUP BY 
-    m.tmdb_id, m.imdb_id, m.title, m.plot, m.content_rating;
+    -- Join with content_rating table to get the rating
+    LEFT JOIN movie_content_rating mcr ON m.movie_id = mcr.movie_id
+    LEFT JOIN content_rating cr ON mcr.content_rating_id = cr.content_rating_id;
