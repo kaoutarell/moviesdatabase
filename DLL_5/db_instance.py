@@ -21,7 +21,8 @@ cur.execute("""
         content_rating VARCHAR(10),
         viewers_rating DECIMAL(3, 1),
         release_year INT,
-        imdb_id VARCHAR(20) -- New column for IMDb ID (VARCHAR to store the IMDb ID / optional might be empty for some records)
+        imdb_id VARCHAR(20) UNIQUE, -- New column for IMDb ID (VARCHAR to store the IMDb ID / optional might be empty for some records)
+        tmdb_id VARCHAR(20) UNIQUE NOT NULL   
     );
 """)
 
@@ -169,13 +170,13 @@ except Exception as e:
 
 
 # test insertion -- alles gute
-def insert_movie(title, plot, content_rating, viewers_rating, release_year, imdb_id):
+def insert_movie(title, plot, content_rating, viewers_rating, release_year, imdb_id, tmdb_id):
     cur.execute(
         """
-        INSERT INTO movie (title, plot, content_rating, viewers_rating, release_year, imdb_id)
-        VALUES (%s, %s, %s, %s, %s, %s) RETURNING movie_id;
+        INSERT INTO movie (title, plot, content_rating, viewers_rating, release_year, imdb_id, tmdb_id)
+        VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING movie_id;
         """,
-        (title, plot, content_rating, viewers_rating, release_year, imdb_id)
+        (title, plot, content_rating, viewers_rating, release_year, imdb_id, tmdb_id)
     )
     conn.commit()
     movie_id = cur.fetchone()[0]  # Retrieve the inserted movie ID
@@ -187,7 +188,8 @@ movie_id = insert_movie(
     "SP-13",
     10.0,
     2024,
-    "tt1234567"  # IMDb ID
+    "tt1234567",
+    "tm9876543"
 )
 
 # closing the connection

@@ -38,7 +38,7 @@ def fetch_and_insert_genres():
     else:
         print(f"Failed to fetch genres: {response.status_code}")
 
-# Helper function to insert data into tables with conflict handling
+# insert data into tables with conflict handling
 def insert_if_not_exists(table, columns, values):
     placeholders = ", ".join(["%s"] * len(values))
     column_names = ", ".join(columns)
@@ -51,10 +51,25 @@ def generate_random_imdb_id():
     # Randomly generate an imdb_id in the format tt########
     return "tt" + str(random.randint(1000000, 9999999))
 
+def generate_random_tmdb_id(existing_ids): #random tmdb_id in the format tm######## (API used doesn't have tmdb)
+    while True:
+        tmdb_id = "tm" + str(random.randint(1000000, 9999999))
+        if tmdb_id not in existing_ids:
+            existing_ids.add(tmdb_id)
+            return tmdb_id
+        
 # Fetch and insert movies and related data
 def fetch_and_insert_movies(min_movies=50):
     page = 1
     total_movies_inserted = 0
+
+    existing_tmdb_ids = set()
+
+    # fetch all existing tmdb_ids to avoid duplicates -- this field is set to UNIQUE
+    cur.execute("SELECT tmdb_id FROM movie WHERE tmdb_id IS NOT NULL")
+    for row in cur.fetchall():
+        existing_tmdb_ids.add(row[0])
+
     while total_movies_inserted < min_movies:
         params = {
             "api_key": api_key,
@@ -77,22 +92,25 @@ def fetch_and_insert_movies(min_movies=50):
                 release_date = movie.get('release_date', "0000-00-00")
                 release_year = int(release_date.split('-')[0]) if release_date else None
 
-                # Generate a random IMDB ID with a 50% chance
+                # generate unique tmdb_id -> UNIQUE FIELD
+                tmdb_id = generate_random_tmdb_id(existing_tmdb_ids)
+
+                # generate a random IMDB ID
                 imdb_id = None
-                if random.random() > 0.5:  # 50% chance to assign a random imdb_id
+                if random.random() > 0.5:  # 50% chance to assign a random imdb_id (some records should be without imdb)
                     imdb_id = generate_random_imdb_id()
 
                 # Build the SQL query dynamically depending on whether imdb_id is available
                 if imdb_id:
                     cur.execute("""
-                        INSERT INTO movie (title, plot, content_rating, viewers_rating, release_year, imdb_id)
-                        VALUES (%s, %s, %s, %s, %s, %s) RETURNING movie_id;
-                    """, (title, plot, content_rating, viewers_rating, release_year, imdb_id))
+                        INSERT INTO movie (title, plot, content_rating, viewers_rating, release_year, imdb_id, tmdb_id)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING movie_id;
+                    """, (title, plot, content_rating, viewers_rating, release_year, imdb_id, tmdb_id))
                 else:
                     cur.execute("""
-                        INSERT INTO movie (title, plot, content_rating, viewers_rating, release_year)
-                        VALUES (%s, %s, %s, %s, %s) RETURNING movie_id;
-                    """, (title, plot, content_rating, viewers_rating, release_year))
+                        INSERT INTO movie (title, plot, content_rating, viewers_rating, release_year, tmdb_id)
+                        VALUES (%s, %s, %s, %s, %s, %s) RETURNING movie_id;
+                    """, (title, plot, content_rating, viewers_rating, release_year, tmdb_id))
 
                 movie_id = cur.fetchone()[0]
 
@@ -103,7 +121,7 @@ def fetch_and_insert_movies(min_movies=50):
                         VALUES (%s, %s) ON CONFLICT DO NOTHING;
                     """, (movie_id, genre_id))
 
-                # Fetch additional movie details
+                # fetch additional movie details -> the details belong to different APIs 
                 fetch_and_insert_movie_details(movie_id, movie['id'])
 
                 total_movies_inserted += 1
