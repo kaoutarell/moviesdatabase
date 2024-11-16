@@ -18,13 +18,65 @@ cur.execute("""
         movie_id SERIAL PRIMARY KEY,
         title VARCHAR(255),
         plot TEXT,
-        content_rating VARCHAR(10),
-        viewers_rating DECIMAL(3, 1),
         release_year INT,
         imdb_id VARCHAR(20) UNIQUE, -- New column for IMDb ID (VARCHAR to store the IMDb ID / optional might be empty for some records)
         tmdb_id VARCHAR(20) UNIQUE NOT NULL   
     );
 """)
+
+# Create the Watchmode table ---> MANY TO MANY CS A MOVIE CAN HAVE MORE THAN 1 WATCHMODE
+cur.execute("""
+    CREATE TABLE IF NOT EXISTS watchmode (
+        watchmode_id SERIAL PRIMARY KEY,
+        wname VARCHAR(100) NOT NULL,
+        CONSTRAINT watchmode_wname_unique UNIQUE (wname) 
+    );
+""")
+
+# Create the many-to-many relationship between movie and watchmode (movie_watchmode table)
+cur.execute("""
+    CREATE TABLE IF NOT EXISTS movie_watchmode (
+        movie_id INT REFERENCES movie(movie_id) ON DELETE CASCADE ON UPDATE CASCADE,
+        watchmode_id INT REFERENCES watchmode(watchmode_id) ON DELETE CASCADE ON UPDATE CASCADE,
+        PRIMARY KEY (movie_id, watchmode_id)
+    );
+""")
+
+# Create the Reviews table -- FOR THE QUERIES IN PART 7
+cur.execute("""
+    CREATE TABLE IF NOT EXISTS review (
+        review_id SERIAL PRIMARY KEY,
+        viewer_rating NUMERIC(3, 1),  -- Viewer rating as a numeric value
+        review_content TEXT
+    );
+""")
+
+# Create the many-to-many relationship between movie and review (movie_review table)
+cur.execute("""
+    CREATE TABLE IF NOT EXISTS movie_review (
+        movie_id INT REFERENCES movie(movie_id) ON DELETE CASCADE ON UPDATE CASCADE,
+        review_id INT REFERENCES review(review_id) ON DELETE CASCADE ON UPDATE CASCADE,
+        PRIMARY KEY (movie_id, review_id)
+    );
+""")
+
+# Create the Content Rating table -- should be in a separate table --> requirements
+cur.execute("""
+    CREATE TABLE IF NOT EXISTS content_rating (
+        content_rating_id SERIAL PRIMARY KEY,
+        rating VARCHAR(10) NOT NULL  -- E.g., PG, PG-13, R, etc.
+    );
+""")
+
+# Create the many-to-many relationship between movie and content_rating (content_rating_review table)
+cur.execute("""
+    CREATE TABLE IF NOT EXISTS movie_content_rating (
+        movie_id INT REFERENCES movie(movie_id) ON DELETE CASCADE ON UPDATE CASCADE,
+        content_rating_id INT REFERENCES content_rating(content_rating_id) ON DELETE CASCADE ON UPDATE CASCADE,
+        PRIMARY KEY (movie_id, content_rating_id)
+    );
+""")
+
 
 # Create the Genres table
 cur.execute("""
@@ -169,28 +221,8 @@ except Exception as e:
     print(f"Error during simple query: {e}")
 
 
-# test insertion -- alles gute
-def insert_movie(title, plot, content_rating, viewers_rating, release_year, imdb_id, tmdb_id):
-    cur.execute(
-        """
-        INSERT INTO movie (title, plot, content_rating, viewers_rating, release_year, imdb_id, tmdb_id)
-        VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING movie_id;
-        """,
-        (title, plot, content_rating, viewers_rating, release_year, imdb_id, tmdb_id)
-    )
-    conn.commit()
-    movie_id = cur.fetchone()[0]  # Retrieve the inserted movie ID
-    return movie_id
 
-movie_id = insert_movie(
-    "Spider-Man : New home",
-    "An upcoming superhero film based on the Marvel Comics character Spider-Man",
-    "SP-13",
-    10.0,
-    2024,
-    "tt1234567",
-    "tm9876543"
-)
+
 
 # closing the connection
 cur.close()

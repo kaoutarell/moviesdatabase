@@ -41,6 +41,13 @@ CREATE TABLE country (
     country_code CHAR(2) NOT NULL UNIQUE -- short code for countries
 );
 
+-- Watchmode Table 
+CREATE TABLE watchmode (
+    watchmode_id SERIAL PRIMARY KEY,
+    platform_name VARCHAR(100) NOT NULL, -- e.g., Netflix, Hulu, etc.
+    movie_id INT REFERENCES movie(movie_id) ON DELETE CASCADE -- FK to movies
+);
+
 
 ----------------------------------------------------- Relationships ----------------------------------------------------------
 

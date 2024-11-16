@@ -1,17 +1,19 @@
 import requests  # type: ignore
 import psycopg2  # type: ignore
 import random  # type: ignore
+from psycopg2 import sql  # type: ignore
+from faker import Faker # type: ignore
 
 # Define the base URLs and API key
 api_key = "d3967d088d5c2e4baa702cf128358a62"
 discover_url = "https://api.themoviedb.org/3/discover/movie"
 movie_details_url = "https://api.themoviedb.org/3/movie/{}"
 genres_url = "https://api.themoviedb.org/3/genre/movie/list"
+watchmode_url = "https://api.watchmode.com/v1/api/"
+content_ratings = ['G', 'PG', 'PG-13', 'R', 'NC-17', 'R']
+watch_modes = ['SD', 'HD', '4K', 'HDR', 'Dolby', 'Rent', 'Buy', 'Free', 'Interactive', 'On-demand']
 
-# Define random content rating options
-random_content_ratings = ['G', 'PG', 'PG-13', 'R', 'NC-17', 'R']
-
-# Connect to PostgreSQL
+# Connect to PostgreSQL database
 conn = psycopg2.connect(
     dbname="movies_db",
     user="kel",
@@ -20,6 +22,37 @@ conn = psycopg2.connect(
     port="5431"
 )
 cur = conn.cursor()
+
+
+# -------- Insert reviews in reviews table -- generated randomly
+
+fake = Faker()
+# Function to generate random review data
+def generate_random_review():
+    # Generate a random rating
+    rating = round(random.uniform(1.0, 10.0), 1)
+    content = fake.text(max_nb_chars=200)  # Generate random review content
+    return rating, content
+
+for _ in range(100):
+    rating, content = generate_random_review()
+    insert_query = """
+    INSERT INTO review (viewer_rating, review_content)
+    VALUES (%s, %s);
+    """
+    cur.execute(insert_query, (rating, content))
+
+# ---------- Insert watch modes into the watchmode table if they don't already exist
+def insert_watch_modes():
+    for wname in watch_modes:
+        cur.execute("""
+            INSERT INTO watchmode (wname)
+            VALUES (%s)
+            ON CONFLICT (wname) DO NOTHING;
+        """, (wname,))
+    conn.commit()
+insert_watch_modes()
+
 
 # Fetch and insert genres
 def fetch_and_insert_genres():
@@ -38,7 +71,7 @@ def fetch_and_insert_genres():
     else:
         print(f"Failed to fetch genres: {response.status_code}")
 
-# insert data into tables with conflict handling
+# Insert data into tables with conflict handling
 def insert_if_not_exists(table, columns, values):
     placeholders = ", ".join(["%s"] * len(values))
     column_names = ", ".join(columns)
@@ -51,13 +84,13 @@ def generate_random_imdb_id():
     # Randomly generate an imdb_id in the format tt########
     return "tt" + str(random.randint(1000000, 9999999))
 
-def generate_random_tmdb_id(existing_ids): #random tmdb_id in the format tm######## (API used doesn't have tmdb)
+def generate_random_tmdb_id(existing_ids): # Random tmdb_id in the format tm########
     while True:
         tmdb_id = "tm" + str(random.randint(1000000, 9999999))
         if tmdb_id not in existing_ids:
             existing_ids.add(tmdb_id)
             return tmdb_id
-        
+
 # Fetch and insert movies and related data
 def fetch_and_insert_movies(min_movies=50):
     page = 1
@@ -65,7 +98,7 @@ def fetch_and_insert_movies(min_movies=50):
 
     existing_tmdb_ids = set()
 
-    # fetch all existing tmdb_ids to avoid duplicates -- this field is set to UNIQUE
+    # Fetch all existing tmdb_ids to avoid duplicates
     cur.execute("SELECT tmdb_id FROM movie WHERE tmdb_id IS NOT NULL")
     for row in cur.fetchall():
         existing_tmdb_ids.add(row[0])
@@ -83,37 +116,38 @@ def fetch_and_insert_movies(min_movies=50):
             if not movies_data:
                 print("No more movies to fetch.")
                 break
-            
+
             for movie in movies_data:
                 title = movie.get('title')
                 plot = movie.get('overview')
-                content_rating = movie.get('content_rating', random.choice(random_content_ratings))  # Random if not provided
+                content_rating = movie.get('content_rating', random.choice(content_ratings))
                 viewers_rating = movie.get('vote_average', 0.0)
                 release_date = movie.get('release_date', "0000-00-00")
                 release_year = int(release_date.split('-')[0]) if release_date else None
 
-                # generate unique tmdb_id -> UNIQUE FIELD
+                # Generate unique tmdb_id -> UNIQUE FIELD
                 tmdb_id = generate_random_tmdb_id(existing_tmdb_ids)
 
-                # generate a random IMDB ID
+                # Generate a random IMDB ID
                 imdb_id = None
-                if random.random() > 0.5:  # 50% chance to assign a random imdb_id (some records should be without imdb)
+                if random.random() > 0.5:  # 50% chance to assign a random imdb_id
                     imdb_id = generate_random_imdb_id()
 
-                # Build the SQL query dynamically depending on whether imdb_id is available
+                # Insert movie into movie table
                 if imdb_id:
                     cur.execute("""
-                        INSERT INTO movie (title, plot, content_rating, viewers_rating, release_year, imdb_id, tmdb_id)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING movie_id;
-                    """, (title, plot, content_rating, viewers_rating, release_year, imdb_id, tmdb_id))
+                        INSERT INTO movie (title, plot, release_year, imdb_id, tmdb_id)
+                        VALUES (%s, %s, %s, %s, %s) RETURNING movie_id;
+                    """, (title, plot, release_year, imdb_id, tmdb_id))
                 else:
                     cur.execute("""
-                        INSERT INTO movie (title, plot, content_rating, viewers_rating, release_year, tmdb_id)
-                        VALUES (%s, %s, %s, %s, %s, %s) RETURNING movie_id;
-                    """, (title, plot, content_rating, viewers_rating, release_year, tmdb_id))
+                        INSERT INTO movie (title, plot, release_year, tmdb_id)
+                        VALUES (%s, %s, %s, %s) RETURNING movie_id;
+                    """, (title, plot, release_year, tmdb_id))
 
                 movie_id = cur.fetchone()[0]
 
+                # Insert genres for the movie
                 genre_ids = movie.get('genre_ids', [])
                 for genre_id in genre_ids:
                     cur.execute("""
@@ -121,7 +155,29 @@ def fetch_and_insert_movies(min_movies=50):
                         VALUES (%s, %s) ON CONFLICT DO NOTHING;
                     """, (movie_id, genre_id))
 
-                # fetch additional movie details -> the details belong to different APIs 
+                if content_rating:
+                    # Check if the content rating exists in the content_rating table
+                    cur.execute("""
+                        SELECT content_rating_id FROM content_rating WHERE rating = %s;
+                    """, (content_rating,))
+                    result = cur.fetchone()
+
+                    # If no content_rating_id is found, insert the new content rating into the table
+                    if result is None:
+                        cur.execute("""
+                            INSERT INTO content_rating (rating) VALUES (%s) RETURNING content_rating_id;
+                        """, (content_rating,))
+                        content_rating_id = cur.fetchone()[0]  # Get the newly inserted content_rating_id
+                    else:
+                        content_rating_id = result[0]  # Use the existing content_rating_id
+
+                    # Insert the content rating and movie association into the content_rating_review table
+                    cur.execute("""
+                        INSERT INTO movie_content_rating (movie_id, content_rating_id)
+                        VALUES (%s, %s) ON CONFLICT DO NOTHING;
+                    """, (movie_id, content_rating_id))
+
+                # Fetch and insert movie details (e.g., actors, directors, countries)
                 fetch_and_insert_movie_details(movie_id, movie['id'])
 
                 total_movies_inserted += 1
@@ -175,6 +231,16 @@ def fetch_and_insert_movie_details(movie_id, tmdb_movie_id):
             cur.execute("SELECT keyword_id FROM keyword WHERE name = %s", (keyword['name'],))
             keyword_id = cur.fetchone()[0]
             cur.execute("INSERT INTO movie_keyword (movie_id, keyword_id) VALUES (%s, %s) ON CONFLICT DO NOTHING", (movie_id, keyword_id))
+
+        # Insert AKAs (Alternative Titles)
+        for aka in details.get('translations', {}).get('translations', []):
+            title = aka.get('title')
+            country = aka.get('iso_3166_1')
+            if title:
+                cur.execute("""
+                    INSERT INTO aka (movie_id, title, country)
+                    VALUES (%s, %s, %s) ON CONFLICT DO NOTHING;
+                """, (movie_id, title, country))
 
         conn.commit()
     else:
