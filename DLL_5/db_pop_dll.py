@@ -275,19 +275,47 @@ def fetch_and_insert_movie_details(movie_id, tmdb_movie_id):
             keyword_id = cur.fetchone()[0]
             cur.execute("INSERT INTO movie_keyword (movie_id, keyword_id) VALUES (%s, %s) ON CONFLICT DO NOTHING", (movie_id, keyword_id))
 
-        # Insert AKAs (Alternative Titles)
+        # Insert AKAs 
         for aka in details.get('translations', {}).get('translations', []):
-            title = aka.get('title')
-            country = aka.get('iso_3166_1')
-            if title:
-                cur.execute("""
-                    INSERT INTO aka (movie_id, title, country)
-                    VALUES (%s, %s, %s) ON CONFLICT DO NOTHING;
-                """, (movie_id, title, country))
+            country_code = aka.get('iso_3166_1')
+            title = aka.get('data', {}).get('title')  # Accessing title from 'data'
+            
+            # Print to verify what we get for title
+            print(f"Processing AKA: {title} ({country_code})")
 
+            if title and country_code:
+                # First, check if the country exists in the country table
+                cur.execute("SELECT country_id FROM country WHERE country_code = %s", (country_code,))
+                country_row = cur.fetchone()
+
+                if country_row:
+                    country_id = country_row[0]
+                else:
+                    print(f"Country code {country_code} not found in the country table. Skipping AKA.")
+                    continue  # If no country found, skip this AKA -- otherwise violation FK
+
+                # Check if the aka already exists
+                cur.execute("SELECT aka_id FROM aka WHERE title = %s AND country_id = %s", (title, country_id))
+                aka_row = cur.fetchone()
+
+                if aka_row:
+                    aka_id = aka_row[0]
+                else:
+                    # Insert new AKA
+                    cur.execute("INSERT INTO aka (title, country_id) VALUES (%s, %s) RETURNING aka_id", (title, country_id))
+                    aka_id = cur.fetchone()[0]
+
+                # Insert the relationship between the movie and AKA into movie_aka table
+                cur.execute("""
+                    INSERT INTO movie_aka (movie_id, aka_id)
+                    VALUES (%s, %s) ON CONFLICT DO NOTHING;
+                """, (movie_id, aka_id))
+
+        # Commit changes
         conn.commit()
+
     else:
-        print(f"Failed to fetch details for movie {tmdb_movie_id}: {details_response.status_code}")
+        print(f"Failed to fetch movie details for {tmdb_movie_id}. Status code: {details_response.status_code}")
 
 # Insert watchmodes
 def insert_movie_watchmodes():
@@ -312,7 +340,7 @@ def insert_movie_watchmodes():
     
     conn.commit()
 
-
+# Link reviews to movies
 def insert_movie_reviews():
     # Fetch all movies and reviews
     cur.execute("SELECT movie_id FROM movie")

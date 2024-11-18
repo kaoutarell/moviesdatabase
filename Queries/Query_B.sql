@@ -1,5 +1,6 @@
 -- Pick an actor -> id:1 / name: Tom Hardy given our data
--- Find all movies by that actor that is released between 2000 and 2020. List TMDB-id, IMDB-id, movie title, release date, and watchmode-id.
+-- Find all movies by that actor that is released between 2000 and 2020. 
+-- List TMDB-id, IMDB-id, movie title, release date, and watchmode-id.
 
 SELECT 
     m.tmdb_id, 

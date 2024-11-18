@@ -135,7 +135,7 @@ cur.execute("""
     CREATE TABLE IF NOT EXISTS country (
         country_id SERIAL PRIMARY KEY,
         name VARCHAR(255),
-        country_code VARCHAR(10) -- New column for country code (can store 2 or 3 character country codes)
+        country_code VARCHAR(10) UNIQUE CHECK (length(country_code) BETWEEN 2 AND 3)  -- Constraint for 2 or 3 characters (requirements)
     );
 """)
 
@@ -182,13 +182,21 @@ cur.execute("""
     );
 """)
 
-# Create the AKAs (Alternative Titles) table
+# Create the AKAs 
 cur.execute("""
     CREATE TABLE IF NOT EXISTS aka (
         aka_id SERIAL PRIMARY KEY,
-        movie_id INT REFERENCES movie(movie_id) ON DELETE CASCADE ON UPDATE CASCADE,
         title VARCHAR(255),
-        country VARCHAR(10)
+        country_id INT REFERENCES country(country_id) ON DELETE CASCADE ON UPDATE CASCADE
+    );
+""")
+
+# Create the AKA movie relationship
+cur.execute("""
+    CREATE TABLE IF NOT EXISTS movie_aka (
+        movie_id INT REFERENCES movie(movie_id) ON DELETE CASCADE ON UPDATE CASCADE,
+        aka_id INT REFERENCES aka(aka_id) ON DELETE CASCADE ON UPDATE CASCADE,
+        PRIMARY KEY (movie_id, aka_id)
     );
 """)
 
